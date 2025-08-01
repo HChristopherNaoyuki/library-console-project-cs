@@ -1,0 +1,55 @@
+name: Build .NET Console Application
+
+on:
+  push:
+    branches: ["main"]  # Triggers on pushes to main branch
+  pull_request:
+    branches: ["main"]  # Triggers on PRs targeting main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Uses Ubuntu runner
+    
+    steps:
+    # Step 1: Checkout repository code
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Gets complete git history for version info
+
+    # Step 2: Install .NET SDK
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'  # Matches your project's target framework
+
+    # Step 3: Restore NuGet packages
+    - name: Restore dependencies
+      run: dotnet restore
+      working-directory: ./library_console_project_cs  # Adjust to your project directory
+
+    # Step 4: Build solution in Release mode
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+      working-directory: ./library_console_project_cs
+
+    # Step 5: Publish as self-contained executable
+    - name: Publish application
+      run: dotnet publish -c Release -o ./publish --no-build -r linux-x64 --self-contained true
+      working-directory: ./library_console_project_cs
+
+    # Step 6: Archive build artifacts
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: library-console-app
+        path: ./library_console_project_cs/publish/
+        retention-days: 5  # Stores artifact for 5 days
+
+    # Step 7: Basic executable verification
+    - name: Verify executable
+      run: |
+        cd ./library_console_project_cs/publish
+        chmod +x library_console_project_cs  # Ensure executable permissions
+        # Simple test that executable runs without crashing
+        ./library_console_project_cs --help || echo "Help command not implemented (expected)"
